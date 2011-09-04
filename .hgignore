@@ -1,0 +1,7 @@
+syntax: glob
+syntax: glob
+Release
+Debug
+doc
+*.zip
+*.launch 
