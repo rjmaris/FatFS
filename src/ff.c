@@ -2194,7 +2194,14 @@ FRESULT validate (	/* FR_OK(0): The object is valid, !=0: Invalid */
 
 --------------------------------------------------------------------------*/
 
-
+/*
+ *  gnu compatible initializer (ToDo: standard initializer for non-gnu compilers)
+ *  Purpose: allow application programmer to change defaults prior to f_mkfs call
+ */
+static const FATFS fs_default = {
+	.n_rootdir	= 512,
+	.n_fats		= 1,
+};
 
 /*-----------------------------------------------------------------------*/
 /* Mount/Unmount a Logical Drive                                         */
@@ -2206,7 +2213,7 @@ FRESULT f_mount (
 )
 {
 	FATFS *rfs;
-
+	DSTATUS stat;
 
 	if (vol >= _VOLUMES)		/* Check if the drive number is valid */
 		return FR_INVALID_DRIVE;
@@ -2222,13 +2229,18 @@ FRESULT f_mount (
 		rfs->fs_type = 0;		/* Clear old fs object */
 	}
 
+	FatFs[vol] = fs;				/* Register new fs object */
 	if (fs) {
-		fs->fs_type = 0;		/* Clear new fs object */
-#if _FS_REENTRANT				/* Create sync object for the new volume */
+		*fs = fs_default;			/* Clear new fs object and initialize as default */
+#if _FS_REENTRANT					/* Create sync object for the new volume */
 		if (!ff_cre_syncobj(vol, &fs->sobj)) return FR_INT_ERR;
 #endif
+		fs->drv = LD2PD(vol);
+		stat = disk_initialize(fs->drv);	/* Initialize low level disk I/O layer */
+		if (stat & STA_NOINIT)				/* Check if the initialization succeeded */
+			return FR_NOT_READY;			/* Failed to initialize due to no media or hard error */
+		return check_fs(fs, 0);
 	}
-	FatFs[vol] = fs;			/* Register new fs object */
 
 	return FR_OK;
 }
@@ -3549,8 +3561,6 @@ FRESULT f_forward (
 /*-----------------------------------------------------------------------*/
 /* Create File System on the Drive                                       */
 /*-----------------------------------------------------------------------*/
-#define N_ROOTDIR	512		/* Number of root dir entries for FAT12/16 */
-#define N_FATS		1		/* Number of FAT copies (1 or 2) */
 
 
 FRESULT f_mkfs (
@@ -3628,17 +3638,17 @@ FRESULT f_mkfs (
 		n_fat = (fmt == FS_FAT12) ? (n_clst * 3 + 1) / 2 + 3 : (n_clst * 2) + 4;
 		n_fat = (n_fat + SS(fs) - 1) / SS(fs);
 		n_rsv = 1;
-		n_dir = (DWORD)N_ROOTDIR * SZ_DIR / SS(fs);
+		n_dir = fs->n_rootdir * SZ_DIR / SS(fs);
 	}
 	b_fat = b_vol + n_rsv;				/* FAT area start sector */
-	b_dir = b_fat + n_fat * N_FATS;		/* Directory area start sector */
+	b_dir = b_fat + n_fat * fs->n_fats;		/* Directory area start sector */
 	b_data = b_dir + n_dir;				/* Data area start sector */
 	if (n_vol < b_data + au - b_vol) return FR_MKFS_ABORTED;	/* Too small volume */
 
 	/* Align data start sector to erase block boundary (for flash memory media) */
 	if (disk_ioctl(pdrv, GET_BLOCK_SIZE, &n) != RES_OK || !n || n > 32768) n = 1;
 	n = (b_data + n - 1) & ~(n - 1);	/* Next nearest erase block from current data start */
-	n = (n - b_data) / N_FATS;
+	n = (n - b_data) / fs->n_fats;
 	if (fmt == FS_FAT32) {		/* FAT32: Move FAT offset */
 		n_rsv += n;
 		b_fat += n;
@@ -3647,7 +3657,7 @@ FRESULT f_mkfs (
 	}
 
 	/* Determine number of clusters and final check of validity of the FAT sub-type */
-	n_clst = (n_vol - n_rsv - n_fat * N_FATS - n_dir) / au;
+	n_clst = (n_vol - n_rsv - n_fat * fs->n_fats - n_dir) / au;
 	if (   (fmt == FS_FAT16 && n_clst < MIN_FAT16)
 		|| (fmt == FS_FAT32 && n_clst < MIN_FAT32))
 		return FR_MKFS_ABORTED;
@@ -3695,8 +3705,8 @@ FRESULT f_mkfs (
 	ST_WORD(tbl+BPB_BytsPerSec, i);
 	tbl[BPB_SecPerClus] = (BYTE)au;			/* Sectors per cluster */
 	ST_WORD(tbl+BPB_RsvdSecCnt, n_rsv);		/* Reserved sectors */
-	tbl[BPB_NumFATs] = N_FATS;				/* Number of FATs */
-	i = (fmt == FS_FAT32) ? 0 : N_ROOTDIR;	/* Number of rootdir entries */
+	tbl[BPB_NumFATs] = fs->n_fats;				/* Number of FATs */
+	i = (fmt == FS_FAT32) ? 0 : fs->n_rootdir;	/* Number of rootdir entries */
 	ST_WORD(tbl+BPB_RootEntCnt, i);
 	if (n_vol < 0x10000) {					/* Number of total sectors */
 		ST_WORD(tbl+BPB_TotSec16, n_vol);
@@ -3732,7 +3742,7 @@ FRESULT f_mkfs (
 
 	/* Initialize FAT area */
 	wsect = b_fat;
-	for (i = 0; i < N_FATS; i++) {		/* Initialize each FAT copy */
+	for (i = 0; i < fs->n_fats; i++) {		/* Initialize each FAT copy */
 		mem_set(tbl, 0, SS(fs));			/* 1st sector of the FAT  */
 		n = md;								/* Media descriptor byte */
 		if (fmt != FS_FAT32) {
