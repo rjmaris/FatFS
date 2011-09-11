@@ -23,18 +23,34 @@ typedef enum {
 } DRESULT;
 
 
+
+/* struct holding api functions for diskio stub */
+typedef struct _diskio_api{
+	DSTATUS (*disk_initialize)(void);
+	DSTATUS (*disk_status)(void);
+	DRESULT (*disk_read)(BYTE *, DWORD sector, BYTE);
+	DRESULT (*disk_write)(const BYTE *, DWORD sector, BYTE);
+	DRESULT (*disk_ioctl)(BYTE, void *);
+} diskio_api;
+
+
+/* API-init for disk-io stub */
+
+#define DISKIO_API_INIT { \
+    .disk_initialize = disk_initialize, \
+    .disk_status = disk_status, \
+    .disk_read = disk_read, \
+    .disk_write = disk_write, \
+    .disk_ioctl = disk_ioctl, \
+}
+
+extern const diskio_api *disks[];
+
+
 /*---------------------------------------*/
 /* Prototypes for disk control functions */
 
-int assign_drives (int, int);
-DSTATUS disk_initialize (BYTE);
-DSTATUS disk_status (BYTE);
-DRESULT disk_read (BYTE, BYTE*, DWORD, BYTE);
-#if	_READONLY == 0
-DRESULT disk_write (BYTE, const BYTE*, DWORD, BYTE);
-#endif
-DRESULT disk_ioctl (BYTE, BYTE, void*);
-
+//int assign_drives (int, int);
 
 
 /* Disk Status Bits (DSTATUS) */

@@ -1,0 +1,6 @@
+.hg
+Release
+Debug
+doc
+*.zip
+*.launch 

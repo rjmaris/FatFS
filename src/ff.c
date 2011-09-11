@@ -95,6 +95,14 @@
 #include "ff.h"			/* FatFs configurations and declarations */
 #include "diskio.h"		/* Declarations of low level disk I/O functions */
 
+/* macros that takes care of unmodified stub calls in ff.c */
+#define disk_initialize(drive) (disks[drive]->disk_initialize)()
+#define disk_status(drive) (disks[drive]->disk_status)()
+#define disk_read(drive, buf, sect, cnt) (disks[(drive)]->disk_read)(buf, sect, cnt)
+#if	_READONLY == 0
+#define disk_write(drive, buf, sect, cnt) (disks[(drive)]->disk_write)((buf), (sect), (cnt))
+#endif
+#define disk_ioctl(drive, ctl, buf) (disks[drive]->disk_ioctl)(ctl, buf)
 
 /*--------------------------------------------------------------------------
 
