@@ -75,8 +75,8 @@ typedef char TCHAR;
 /* File system object structure (FATFS) */
 
 typedef struct {
+	diskio_api	*api;		/* pointer to appropriate low-level API */
 	BYTE	fs_type;		/* FAT sub-type (0:Not mounted) */
-	BYTE	drv;			/* Physical drive number */
 	BYTE	csize;			/* Sectors per cluster (1,2,4...128) */
 	BYTE	n_fats;			/* Number of FAT copies (1,2) */
 	BYTE	wflag;			/* win[] dirty flag (1:must be written back) */
@@ -202,7 +202,7 @@ typedef enum {
 /*--------------------------------------------------------------*/
 /* FatFs module application interface                           */
 
-FRESULT f_mount (BYTE, FATFS*);						/* Mount/Unmount a logical drive */
+FRESULT f_mount (BYTE, FATFS*, const diskio_api*);			/* Mount/Unmount a logical drive */
 FRESULT f_open (FIL*, const TCHAR*, BYTE);			/* Open or create a file */
 FRESULT f_read (FIL*, void*, UINT, UINT*);			/* Read data from a file */
 FRESULT f_lseek (FIL*, DWORD);						/* Move file pointer of a file object */

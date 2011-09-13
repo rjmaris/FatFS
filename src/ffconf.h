@@ -125,7 +125,7 @@
 / Physical Drive Configurations
 /----------------------------------------------------------------------------*/
 
-#define _VOLUMES	1
+#define _VOLUMES	2
 /* Number of volumes (logical drives) to be used. */
 
 
@@ -137,7 +137,7 @@
 /  and GET_SECTOR_SIZE command must be implememted to the disk_ioctl function. */
 
 
-#define	_MULTI_PARTITION	0	/* 0:Single partition, 1/2:Enable multiple partition */
+#define	_MULTI_PARTITION	1	/* 0:Single partition, 1/2:Enable multiple partition */
 /* When set to 0, each volume is bound to the same physical drive number and
 / it can mount only first primaly partition. When it is set to 1, each volume
 / is tied to the partitions listed in VolToPart[]. */

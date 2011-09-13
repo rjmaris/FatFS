@@ -44,7 +44,7 @@ typedef struct _diskio_api{
     .disk_ioctl = disk_ioctl, \
 }
 
-extern const diskio_api *disks[];
+//extern const diskio_api *disks[];
 
 
 /*---------------------------------------*/
