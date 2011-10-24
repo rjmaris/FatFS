@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------/
-/  FatFs - FAT file system module include file  R0.09     (C)ChaN, 2011
+/  FatFs - FAT file system module include file  R0.10b     (C)ChaN, 2011
 /----------------------------------------------------------------------------/
 / FatFs module is a generic FAT file system module for small embedded systems.
 / This is a free software that opened for education, research and commercial
@@ -75,7 +75,7 @@ typedef char TCHAR;
 /* File system object structure (FATFS) */
 
 typedef struct {
-	diskio_api	*api;		/* pointer to appropriate low-level API */
+	const diskio_api	*api;		/* pointer to appropriate low-level API */
 	BYTE	fs_type;		/* FAT sub-type (0:Not mounted) */
 	BYTE	csize;			/* Sectors per cluster (1,2,4...128) */
 	BYTE	n_fats;			/* Number of FAT copies (1,2) */
@@ -83,9 +83,7 @@ typedef struct {
 	BYTE	fsi_flag;		/* fsinfo dirty flag (1:must be written back) */
 	WORD	id;				/* File system mount ID */
 	WORD	n_rootdir;		/* Number of root directory entries (FAT12/16) */
-#if _MAX_SS != 512
 	WORD	ssize;			/* Bytes per sector (512, 1024, 2048 or 4096) */
-#endif
 #if _FS_REENTRANT
 	_SYNC_t	sobj;			/* Identifier of sync object */
 #endif

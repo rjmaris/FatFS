@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------/
-/  FatFs - FAT file system module  R0.09                  (C)ChaN, 2011
+/  FatFs - FAT file system module  R0.10b                  (C)ChaN, 2011
 /-----------------------------------------------------------------------------/
 / FatFs module is a generic FAT file system module for small embedded systems.
 / This is a free software that opened for education, research and commercial
@@ -90,6 +90,8 @@
 /
 / Sep 06,'11 R0.09  f_mkfs() supports multiple partition to finish the multiple partition feature.
 /                   Added f_fdisk(). (_MULTI_PARTITION = 2)
+/ Oct 24,'11 R0.10b disk driver model with API, f_mount makes association of drive number
+/					to individual disk driver.
 /---------------------------------------------------------------------------*/
 
 #include "diskio.h"		/* Declarations of low level disk I/O functions */
@@ -119,11 +121,7 @@
 #if _MAX_SS != 512 && _MAX_SS != 1024 && _MAX_SS != 2048 && _MAX_SS != 4096
 #error Wrong sector size.
 #endif
-#if _MAX_SS != 512
 #define	SS(fs)	((fs)->ssize)	/* Variable sector size */
-#else
-#define	SS(fs)	512U			/* Fixed sector size */
-#endif
 
 
 /* Reentrancy related */
@@ -2065,10 +2063,8 @@ FRESULT chk_mounted (	/* FR_OK(0): successful, !=0: any error occurred */
 		return FR_NOT_READY;			/* Failed to initialize due to no media or hard error */
 	if (!_FS_READONLY && chk_wp && (stat & STA_PROTECT))	/* Check disk write protection if needed */
 		return FR_WRITE_PROTECTED;
-#if _MAX_SS != 512						/* Get disk sector size (variable sector size cfg only) */
 	if (disk_ioctl(fs, GET_SECTOR_SIZE, &fs->ssize) != RES_OK)
 		return FR_DISK_ERR;
-#endif
 	/* Search FAT partition on the drive. Supports only generic partitionings, FDISK and SFD. */
 	fmt = check_fs(fs, bsect = 0);		/* Load sector 0 and check if it is an FAT-VBR (in SFD) */
 	if (LD2PT(vol) && !fmt) fmt = 1;	/* Force non-SFD if the volume is forced partition */
@@ -2205,11 +2201,13 @@ FRESULT validate (	/* FR_OK(0): The object is valid, !=0: Invalid */
  *  gnu compatible initializer (ToDo: standard initializer for non-gnu compilers)
  *  Purpose: allow application programmer to change defaults prior to f_mkfs call
  */
+
+#ifdef __GNUC__
 static const FATFS fs_default = {
 	.n_rootdir	= 512,
 	.n_fats		= 1,
 };
-
+#endif
 /*-----------------------------------------------------------------------*/
 /* Mount/Unmount a Logical Drive                                         */
 /*-----------------------------------------------------------------------*/
@@ -2239,7 +2237,16 @@ FRESULT f_mount (
 
 	FatFs[vol] = fs;				/* Register new fs object */
 	if (fs) {
+#ifdef __GNUC__
+
 		*fs = fs_default;			/* Clear new fs object and initialize as default */
+#else
+		// any specific defaults specified before call: do not overwrite
+		if (!fs->n_rootdir)
+			fs->n_rootdir = 512;
+		if (!fs->n_fats)
+			fs->n_fats = 1;
+#endif
 		fs->api = dsk;
 #if _FS_REENTRANT				/* Create sync object for the new volume */
 		if (!ff_cre_syncobj(vol, &fs->sobj)) return FR_INT_ERR;
@@ -3605,10 +3612,8 @@ FRESULT f_mkfs (
 	stat = disk_initialize(fs);
 	if (stat & STA_NOINIT) return FR_NOT_READY;
 	if (stat & STA_PROTECT) return FR_WRITE_PROTECTED;
-#if _MAX_SS != 512					/* Get disk sector size */
 	if (disk_ioctl(fs, GET_SECTOR_SIZE, &SS(fs)) != RES_OK || SS(fs) > _MAX_SS)
 		return FR_DISK_ERR;
-#endif
 	if (_MULTI_PARTITION && part) {
 		/* Get partition information from partition table in the MBR */
 		if (disk_read(fs, fs->win, 0, 1) != RES_OK) return FR_DISK_ERR;

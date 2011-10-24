@@ -36,6 +36,7 @@ typedef struct _diskio_api{
 
 /* API-init for disk-io stub */
 
+#ifdef __GNUC__
 #define DISKIO_API_INIT { \
     .disk_initialize = disk_initialize, \
     .disk_status = disk_status, \
@@ -43,7 +44,15 @@ typedef struct _diskio_api{
     .disk_write = disk_write, \
     .disk_ioctl = disk_ioctl, \
 }
-
+#else
+#define DISKIO_API_INIT { \
+    disk_initialize, \
+    disk_status, \
+    disk_read, \
+    disk_write, \
+    disk_ioctl, \
+}
+#endif
 //extern const diskio_api *disks[];
 
 
